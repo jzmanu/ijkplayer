@@ -60,10 +60,17 @@ inline static void msg_free_res(AVMessage *msg)
     msg->obj = NULL;
 }
 
+/**
+ * @brief 添加AVMessage到MessageQueue
+ * 
+ * @param q  MessageQueue
+ * @param msg  AVMessage
+ * @return int 
+ */
 inline static int msg_queue_put_private(MessageQueue *q, AVMessage *msg)
 {
     AVMessage *msg1;
-
+    // abort
     if (q->abort_request)
         return -1;
 
@@ -123,6 +130,8 @@ inline static void msg_queue_put_simple1(MessageQueue *q, int what)
     msg_init_msg(&msg);
     msg.what = what;
     msg_queue_put(q, &msg);
+
+    
 }
 
 inline static void msg_queue_put_simple2(MessageQueue *q, int what, int arg1)
@@ -170,6 +179,14 @@ inline static void msg_queue_init(MessageQueue *q)
     q->abort_request = 1;
 }
 
+/**
+ * 
+ * first_msg->X->X->last_msg
+ * 
+ * @brief 
+ * 
+ * @param q 
+ */
 inline static void msg_queue_flush(MessageQueue *q)
 {
     AVMessage *msg, *msg1;
@@ -231,7 +248,13 @@ inline static void msg_queue_start(MessageQueue *q)
     SDL_UnlockMutex(q->mutex);
 }
 
-/* return < 0 if aborted, 0 if no msg and > 0 if msg.  */
+/**
+ * @brief 从MessageQueue中获取第一个AVMessage
+ * @param q MessageQueue
+ * @param msg AVMessage
+ * @param block 1表示阻塞，0表示不阻塞
+ * @return int return < 0 if aborted, 0 if no msg and > 0 if msg.
+ */
 inline static int msg_queue_get(MessageQueue *q, AVMessage *msg, int block)
 {
     AVMessage *msg1;
@@ -240,13 +263,14 @@ inline static int msg_queue_get(MessageQueue *q, AVMessage *msg, int block)
     SDL_LockMutex(q->mutex);
 
     for (;;) {
+        // abort
         if (q->abort_request) {
             ret = -1;
             break;
         }
-
+        // 获取队首消息
         msg1 = q->first_msg;
-        if (msg1) {
+        if (msg1) {// 处理队列中的消息
             q->first_msg = msg1->next;
             if (!q->first_msg)
                 q->last_msg = NULL;
@@ -261,10 +285,10 @@ inline static int msg_queue_get(MessageQueue *q, AVMessage *msg, int block)
 #endif
             ret = 1;
             break;
-        } else if (!block) {
+        } else if (!block) {// 直接退出
             ret = 0;
             break;
-        } else {
+        } else {// 阻塞等待
             SDL_CondWait(q->cond, q->mutex);
         }
     }

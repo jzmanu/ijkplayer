@@ -114,6 +114,11 @@ void ijkmp_change_state_l(IjkMediaPlayer *mp, int new_state)
     ffp_notify_msg1(mp->ffplayer, FFP_MSG_PLAYBACK_STATE_CHANGED);
 }
 
+/**
+ * @brief 创建c层的IjkMediaPlayer，初始化IjkMediaPlayer结构体
+ * @param msg_loop 事件循环对应的函数指针
+ * @return IjkMediaPlayer* 
+ */
 IjkMediaPlayer *ijkmp_create(int (*msg_loop)(void*))
 {
     IjkMediaPlayer *mp = (IjkMediaPlayer *) mallocz(sizeof(IjkMediaPlayer));
@@ -136,6 +141,7 @@ IjkMediaPlayer *ijkmp_create(int (*msg_loop)(void*))
     return NULL;
 }
 
+// https://juejin.cn/post/6844903976979316749
 void *ijkmp_set_inject_opaque(IjkMediaPlayer *mp, void *opaque)
 {
     assert(mp);
@@ -314,6 +320,7 @@ void ijkmp_shutdown(IjkMediaPlayer *mp)
 void ijkmp_inc_ref(IjkMediaPlayer *mp)
 {
     assert(mp);
+    // 原子操作函数 https://www.cnblogs.com/kex1n/p/7111299.html
     __sync_fetch_and_add(&mp->ref_count, 1);
 }
 

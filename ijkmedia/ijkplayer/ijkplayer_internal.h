@@ -31,21 +31,30 @@
 #include "ijkplayer.h"
 
 struct IjkMediaPlayer {
+    /* IjkMediaPlayer创建一次则ref_count计数加一次 */
     volatile int ref_count;
+    /* 保护接口调用的锁*/
     pthread_mutex_t mutex;
+    /* FFPlayer是原ffplayer里面的结构体，有被ijk作者扩展 */
     FFPlayer *ffplayer;
-
+    /* 用于ijkPlayer回调给应用层的一个消息循环函数 */
     int (*msg_loop)(void*);
+    /* 消息线程 */
     SDL_Thread *msg_thread;
     SDL_Thread _msg_thread;
-
+    /* 播放器状态 */
     int mp_state;
+    /* 播放地址 */
     char *data_source;
+    /* Java层IjkMediaPlayer对应弱引用对象 */
     void *weak_thiz;
-
+    /* 是否重新播放 */
     int restart;
+    /* restart是否从头开始 */
     int restart_from_beginning;
+    /* 标识用户是不是seek了进度条 */
     int seek_req;
+    /* seek的毫秒值 */
     long seek_msec;
 };
 

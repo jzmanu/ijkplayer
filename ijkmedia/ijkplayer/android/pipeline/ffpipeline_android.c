@@ -268,6 +268,14 @@ void ffpipeline_set_mediacodec_select_callback(IJKFF_Pipeline* pipeline, bool (*
     pipeline->opaque->mediacodec_select_callback_opaque = opaque;
 }
 
+/**
+ * @brief 编解码器选择
+ * 
+ * @param pipeline IJKFF_Pipeline
+ * @param mcc 
+ * @return true 
+ * @return false 
+ */
 bool ffpipeline_select_mediacodec_l(IJKFF_Pipeline* pipeline, ijkmp_mediacodecinfo_context *mcc)
 {
     ALOGD("%s\n", __func__);

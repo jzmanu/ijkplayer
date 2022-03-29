@@ -1185,24 +1185,25 @@ static JNINativeMethod g_methods[] = {
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)
 {
     JNIEnv* env = NULL;
-
+    // 保存全局的JavaVM
     g_jvm = vm;
     if ((*vm)->GetEnv(vm, (void**) &env, JNI_VERSION_1_4) != JNI_OK) {
         return -1;
     }
     assert(env != NULL);
-
+    // 互斥锁的初始化
     pthread_mutex_init(&g_clazz.mutex, NULL );
-
     // FindClass returns LocalReference
+    // 将IjkMediaPlayer转换为一个全局引用
     IJK_FIND_JAVA_CLASS(env, g_clazz.clazz, JNI_CLASS_IJKPLAYER);
+    // 注册Native方法与Java方法相对应
     (*env)->RegisterNatives(env, g_clazz.clazz, g_methods, NELEM(g_methods) );
-
+    // 初始化：注册编解码器、解复用器、协议
     ijkmp_global_init();
+    // 设置回调，对应Java层的onNativeInvoke回调函数
     ijkmp_global_set_inject_callback(inject_callback);
-
+    // 注册av_base64_encode与FFmpegApi_av_base64_encode的对应关系
     FFmpegApi_global_init(env);
-
     return JNI_VERSION_1_4;
 }
 

@@ -33,18 +33,19 @@
 
 IjkMediaPlayer *ijkmp_android_create(int(*msg_loop)(void*))
 {
+    // 填充IjkMediaPlayer结构体
     IjkMediaPlayer *mp = ijkmp_create(msg_loop);
     if (!mp)
         goto fail;
-
+    // 初始化SDL_Vout，表示IJK中的显示上下文
     mp->ffplayer->vout = SDL_VoutAndroid_CreateForAndroidSurface();
     if (!mp->ffplayer->vout)
         goto fail;
-
+    // 初始化IJKFF_Pipeline，解码器、音频输出
     mp->ffplayer->pipeline = ffpipeline_create_from_android(mp->ffplayer);
     if (!mp->ffplayer->pipeline)
         goto fail;
-
+    // 绑定SDL_Vout到IJKFF_Pipeline_Opaque
     ffpipeline_set_vout(mp->ffplayer->pipeline, mp->ffplayer->vout);
 
     return mp;

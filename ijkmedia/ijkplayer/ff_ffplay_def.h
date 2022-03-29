@@ -271,7 +271,7 @@ typedef struct Decoder {
     Uint64 first_frame_decoded_time;
     int    first_frame_decoded;
 } Decoder;
-
+// 播放视频所需要的数据
 typedef struct VideoState {
     SDL_Thread *read_tid;
     SDL_Thread _read_tid;
