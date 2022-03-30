@@ -198,10 +198,15 @@ typedef struct AudioParams {
     int bytes_per_sec;
 } AudioParams;
 
+// 时钟
 typedef struct Clock {
+    /* 时钟基，表示当前帧的显示时间戳，播放后该当前帧变为上一帧 */
     double pts;           /* clock base */
+    /* pts与当前系统时钟之间的差值 */
     double pts_drift;     /* clock base minus time at which we updated the clock */
+    /* 当前时钟最后一次更新时间 */
     double last_updated;
+    /* 时钟速度 */
     double speed;
     int serial;           /* clock is based on a packet with this serial */
     int paused;
@@ -273,8 +278,10 @@ typedef struct Decoder {
 } Decoder;
 // 播放视频所需要的数据
 typedef struct VideoState {
+    /* 读线程 */
     SDL_Thread *read_tid;
     SDL_Thread _read_tid;
+    /* 输入格式 */
     AVInputFormat *iformat;
     int abort_request;
     int force_refresh;
@@ -291,20 +298,29 @@ typedef struct VideoState {
     AVFormatContext *ic;
     int realtime;
 
+    /* 音频时钟 */
     Clock audclk;
+    /* 视频时钟 */
     Clock vidclk;
+    /* 外部时钟 */
     Clock extclk;
-
+    /* 解码后的视频数据 */
     FrameQueue pictq;
+    /* 解码后的字幕数据 */
     FrameQueue subpq;
+    /* 解码后的音频数据 */
     FrameQueue sampq;
 
+    /* 音频解码器 */
     Decoder auddec;
+    /* 视频解码器 */
     Decoder viddec;
+    /* 字幕解码器 */
     Decoder subdec;
 
+    /* 音频流 */
     int audio_stream;
-
+    /* 音视频同步方式 */
     int av_sync_type;
     void *handle;
     double audio_clock;
@@ -314,6 +330,7 @@ typedef struct VideoState {
     double audio_diff_threshold;
     int audio_diff_avg_count;
     AVStream *audio_st;
+    /* 未解码的音频数据 */
     PacketQueue audioq;
     int audio_hw_buf_size;
     uint8_t *audio_buf;
@@ -353,16 +370,19 @@ typedef struct VideoState {
     SDL_Texture *vis_texture;
     SDL_Texture *sub_texture;
 #endif
-
+    /* 字幕流 */
     int subtitle_stream;
     AVStream *subtitle_st;
+    /* 未解码的字幕数据 */
     PacketQueue subtitleq;
 
     double frame_timer;
     double frame_last_returned_time;
     double frame_last_filter_delay;
+    /* 视频流 */
     int video_stream;
     AVStream *video_st;
+    /* 未解码的视频数据 */
     PacketQueue videoq;
     double max_frame_duration;      // maximum duration of a frame - above this, we consider the jump a timestamp discontinuity
     struct SwsContext *img_convert_ctx;
@@ -372,6 +392,7 @@ typedef struct VideoState {
     int eof;
 
     char *filename;
+    /* 视频宽高、位置 */
     int width, height, xleft, ytop;
     int step;
 
@@ -390,6 +411,7 @@ typedef struct VideoState {
 
     /* extra fields */
     SDL_mutex  *play_mutex; // only guard state, do not block any long operation
+    /* 视频显示刷新线程 */
     SDL_Thread *video_refresh_tid;
     SDL_Thread _video_refresh_tid;
 
@@ -587,6 +609,7 @@ typedef struct FFPlayer {
     int seek_by_bytes;
     int display_disable;
     int show_status;
+    /* 音视频同步方式 */
     int av_sync_type;
     int64_t start_time;
     int64_t duration;
@@ -660,6 +683,7 @@ typedef struct FFPlayer {
     int64_t playable_duration_ms;
 
     int packet_buffering;
+    /* 帧队列大小，默认size为3 */
     int pictq_size;
     int max_fps;
     int startup_volume;
@@ -679,6 +703,7 @@ typedef struct FFPlayer {
     int mediacodec_auto_rotate;
 
     int opensles;
+    /* 是否支持soundtouch */
     int soundtouch_enable;
 
     char *iformat_name;
@@ -709,7 +734,9 @@ typedef struct FFPlayer {
     AVApplicationContext *app_ctx;
     IjkIOManagerContext *ijkio_manager_ctx;
 
+    /* 是否精准seek，需要自行在代码中开启(https://github.com/Bilibili/ijkplayer/issues/3570) */
     int enable_accurate_seek;
+    /* 精准seek超时 */
     int accurate_seek_timeout;
     int mediacodec_sync;
     int skip_calc_frame_rate;

@@ -3636,6 +3636,19 @@ static int read_thread(void *arg)
 }
 
 static int video_refresh_thread(void *arg);
+/**
+ * @brief 打开流
+ * 1. 队列初始化（已解码的帧队列和未解码的数据队列）
+ * 2. 创建了视频渲染线程和读线程
+ * 3. 互斥锁和信号量的创建
+ * 4. 音视频同步方式及时钟初始化
+ * 5. 音量初始化
+ * 6. 读取线程创建后允许初始化解码器
+ * @param ffp FFPlayer
+ * @param filename filename
+ * @param iformat AVInputFormat
+ * @return VideoState* 
+ */
 static VideoState *stream_open(FFPlayer *ffp, const char *filename, AVInputFormat *iformat)
 {
     assert(!ffp->is);
@@ -3657,6 +3670,7 @@ static VideoState *stream_open(FFPlayer *ffp, const char *filename, AVInputForma
 #endif
 
     /* start video display */
+    // 解码后帧队列初始化
     if (frame_queue_init(&is->pictq, &is->videoq, ffp->pictq_size, 1) < 0)
         goto fail;
     if (frame_queue_init(&is->subpq, &is->subtitleq, SUBPICTURE_QUEUE_SIZE, 0) < 0)
@@ -3664,30 +3678,33 @@ static VideoState *stream_open(FFPlayer *ffp, const char *filename, AVInputForma
     if (frame_queue_init(&is->sampq, &is->audioq, SAMPLE_QUEUE_SIZE, 1) < 0)
         goto fail;
 
+    // 未解码数据队列初始化
     if (packet_queue_init(&is->videoq) < 0 ||
         packet_queue_init(&is->audioq) < 0 ||
         packet_queue_init(&is->subtitleq) < 0)
         goto fail;
 
-    if (!(is->continue_read_thread = SDL_CreateCond())) {
+    // 条件变量(信号量)初始化
+    if (!(is->continue_read_thread = SDL_CreateCond())) {// 读线程
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateCond(): %s\n", SDL_GetError());
         goto fail;
     }
 
-    if (!(is->video_accurate_seek_cond = SDL_CreateCond())) {
+    if (!(is->video_accurate_seek_cond = SDL_CreateCond())) {// 视频精准seek
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateCond(): %s\n", SDL_GetError());
         ffp->enable_accurate_seek = 0;
     }
 
-    if (!(is->audio_accurate_seek_cond = SDL_CreateCond())) {
+    if (!(is->audio_accurate_seek_cond = SDL_CreateCond())) {// 音频精准seek
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateCond(): %s\n", SDL_GetError());
         ffp->enable_accurate_seek = 0;
     }
-
+    // 时钟初始化
     init_clock(&is->vidclk, &is->videoq.serial);
     init_clock(&is->audclk, &is->audioq.serial);
     init_clock(&is->extclk, &is->extclk.serial);
     is->audio_clock_serial = -1;
+    // 初始化音量
     if (ffp->startup_volume < 0)
         av_log(NULL, AV_LOG_WARNING, "-volume=%d < 0, setting to 0\n", ffp->startup_volume);
     if (ffp->startup_volume > 100)
@@ -3696,13 +3713,19 @@ static VideoState *stream_open(FFPlayer *ffp, const char *filename, AVInputForma
     ffp->startup_volume = av_clip(SDL_MIX_MAXVOLUME * ffp->startup_volume / 100, 0, SDL_MIX_MAXVOLUME);
     is->audio_volume = ffp->startup_volume;
     is->muted = 0;
+
+    // 设置音视频同步方式，默认AV_SYNC_AUDIO_MASTER
     is->av_sync_type = ffp->av_sync_type;
 
+    // 播放互斥锁
     is->play_mutex = SDL_CreateMutex();
+    // 精准seek互斥锁
     is->accurate_seek_mutex = SDL_CreateMutex();
+
     ffp->is = is;
     is->pause_req = !ffp->start_on_prepared;
 
+    // 视频渲染线程
     is->video_refresh_tid = SDL_CreateThreadEx(&is->_video_refresh_tid, video_refresh_thread, ffp, "ff_vout");
     if (!is->video_refresh_tid) {
         av_freep(&ffp->is);
@@ -3710,19 +3733,23 @@ static VideoState *stream_open(FFPlayer *ffp, const char *filename, AVInputForma
     }
 
     is->initialized_decoder = 0;
+    // 读取线程
     is->read_tid = SDL_CreateThreadEx(&is->_read_tid, read_thread, ffp, "ff_read");
     if (!is->read_tid) {
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateThread(): %s\n", SDL_GetError());
         goto fail;
     }
-
+    
+    // 异步初始化解码器，和硬解相关，默认未开启
     if (ffp->async_init_decoder && !ffp->video_disable && ffp->video_mime_type && strlen(ffp->video_mime_type) > 0
                     && ffp->mediacodec_default_name && strlen(ffp->mediacodec_default_name) > 0) {
+        // mediacodec
         if (ffp->mediacodec_all_videos || ffp->mediacodec_avc || ffp->mediacodec_hevc || ffp->mediacodec_mpeg2) {
             decoder_init(&is->viddec, NULL, &is->videoq, is->continue_read_thread);
             ffp->node_vdec = ffpipeline_init_video_decoder(ffp->pipeline, ffp);
         }
     }
+    // 允许初始化解码器
     is->initialized_decoder = 1;
 
     return is;
@@ -3991,7 +4018,7 @@ FFPlayer *ffp_create()
     ffp_reset_internal(ffp);
     ffp->av_class = &ffp_context_class;
     ffp->meta = ijkmeta_create();
-
+    // 设置相关的AVOption
     av_opt_set_defaults(ffp);
 
     return ffp;
@@ -4297,7 +4324,6 @@ int ffp_prepare_async_l(FFPlayer *ffp, const char *file_name)
         ffp->vfilters_list[ffp->nb_vfilters - 1] = ffp->vfilter0;
     }
 #endif
-
     VideoState *is = stream_open(ffp, file_name, NULL);
     if (!is) {
         av_log(NULL, AV_LOG_WARNING, "ffp_prepare_async_l: stream_open failed OOM");
